@@ -76,13 +76,27 @@ buffer-specific commands.
 ==============================================================================
 CONFIGURATION					*rails-configuration*
 
-Little configuration should need to be done; this plugin automatically detects
-and adjusts Vim sensibly and subtly.  If you would like to set your own custom
-Vim settings when ever a Rails file is loaded, you can use an autocmd like the
-following in your vimrc: >
-	autocmd User Rails* Lcd
-	autocmd User Rails* map <buffer> <M-6> <Plug>RailsAlternate
-Note the use of an asterisk; this is required to allow for future expansion.
+Very little configuration is actually required; this plugin automatically
+detects and adjusts Vim sensibly and subtly.
+
+					*rails-:autocmd* *rails-autocommands*
+If you would like to set your own custom Vim settings whenever a Rails file is
+loaded, you can use an autocommand like the following in your vimrc: >
+	autocmd User Rails*		silent! Rlcd
+You can also have autocommands that only apply to certain types of files.
+These are based off the information shown in the statusline (see
+|rails-'statusline'|), with hyphens changed to asterisks. A few examples: >
+	autocmd User Rails*test*	iabbr <buffer> ae assert_equal
+	autocmd User Rails*view*rhtml*	nmap  <buffer> <C-T> <Plug>RailsMagicM
+	autocmd User Rails*model*ar*	iabbr <buffer> vfo validates_format_of
+End all Rails autocommands with asterisks, even if you have an exact
+specification.
+
+						*config/rails.vim*
+If you have settings particular to a specific project, they can be put in a
+config/rails.vim file in the root directory of that application.  The file is
+sourced in the |sandbox| for security reasons.  This only works in Vim 7 or
+newer.
 
 A few global variables control the behavior of this plugin.  In general, they
 can be enabled by setting them to 1 in your vimrc, and disabled by setting
@@ -100,50 +114,21 @@ value	meaning ~
 -1	Completely disabled.
 0	User level autocommands only.
 1	Minimal features; mainly option management.
-2	Default.
-3	Adds a few niceties like mappings and the statusline.  Recommended.
-4	Enables recommended features in other plugins too (like
-	omnicompletion).  Author's choice.
+2	Default, minus a few niceties like mappings and the statusline.
+3	Default.  Includes all but a few possibly disruptive features.
+4	Enables all normal features.  Recommended.
 5+	Experimental features.
 
-						*g:rails_loaded*  >
-	let g:rails_loaded=1
+						*g:loaded_rails*  >
+	let g:loaded_rails=1
 Do not load the plugin. For emergency use only.
 
-						*g:rails_mappings*  >
-	let g:rails_mappings=1
-Enables a few <LocalLeader> mappings.  See |rails-mappings|. Enabled when
-|g:rails_level| >= 3.
-
-						*g:rails_leader*  >
-	let g:rails_leader='<LocalLeader>r'
-Prefix for mappings.  See |rails-mappings|.
-
-						*g:rails_expensive*  >
-	let g:rails_expensive=1
-Enables or disables expensive (slow) features (typically involving calls to
-the Ruby interpreter).  Recommended for moderately fast computers.  Enabled
-when |g:rails_level| >= 3.
-
-						*g:rails_statusline*  >
-	let g:rails_statusline=1
-Give a clue in the statusline when this plugin is enabled.  This requires that
-the current filetype is in your existing 'statusline'.  Enabled when
-|g:rails_level| >= 3.
-
-						*g:rails_isfname*  >
-	let g:rails_isfname=1
-Enables changes to the 'isfname' option.  Enabled when |g:rails_level| >= 2.
-See |rails-'isfname'|.
-
-						*g:rails_syntax*  >
-	let g:rails_syntax=1
-When enabled, this tweaks the syntax highlighting to be more Rails friendly.
-Enabled when |g:rails_level| >= 2.
-
-When g:rails_syntax is enabled, you may find your Ruby files to be a bit heavy
-on the cyan (or however your Identifiers are highlighted).  You may want to
-enable g:ruby_no_identifiers, as explained in |ft-ruby-syntax|.
+						*g:rails_avim_commands*  >
+	let g:rails_avim_commands=1
+Adds some a.vim compatible aliases for |:Ralternate|, like :A, :AS, :AV, and
+:AT.  This does not require a.vim.  (a.vim is a plugin for easily alternating
+between, for example, foo.c and foo.h.  If it's installed, you can see
+|alternate.txt| for more information.)  Enabled when |g:rails_level| >= 3.
 
 						*g:rails_default_file*  >
 	let g:rails_default_file='config/database.yml'
@@ -153,6 +138,53 @@ File to load when a new Rails application is created.  Defaults to the README.
 	let g:rails_default_database='sqlite3'
 Database to use for new applications.  Defaults to letting Rails decide.
  
+					*rails-slow* *g:rails_expensive*  >
+	let g:rails_expensive=1
+Enables or disables expensive (slow) features (typically involving calls to
+the Ruby interpreter).  Recommended for moderately fast computers.  Enabled
+when |g:rails_level| >= 3 (>= 4 on Windows, which is decidedly slower in the
+author's experience).
+
+						*g:rails_isfname*  >
+	let g:rails_isfname=1
+Enables changes to the 'isfname' option.  Should no longer be necessary.
+
+						*g:rails_leader*  >
+	let g:rails_leader='<LocalLeader>r'
+Prefix for mappings.  See |rails-mappings|.
+
+						*g:rails_mappings*  >
+	let g:rails_mappings=1
+Enables a few <LocalLeader> mappings.  See |rails-mappings|. Enabled when
+|g:rails_level| >= 3.
+
+						*g:rails_statusline*  >
+	let g:rails_statusline=1
+Give a clue in the statusline when this plugin is enabled.  This requires that
+the current filetype is in your existing 'statusline'.  Enabled when
+|g:rails_level| >= 3.
+
+						*g:rails_syntax*  >
+	let g:rails_syntax=1
+When enabled, this tweaks the syntax highlighting to be more Rails friendly.
+Enabled when |g:rails_level| >= 2.
+
+						*g:rails_subversion*  >
+	let g:rails_subversion=1
+Automatically add/remove files to the subversion repository for commands like
+|:Rgenerate| and |:Rdestroy| (but not |:Rscript|).  Ignored when the
+application is not part of a subversion repository.  Enabled with
+|g:rails_level| >= 3.
+
+						*g:rails_root_url*  >
+	let g:rails_root_url='http://localhost:3000/'
+Used for the |:Rpreview| command.  Default is as shown above.  Overridden by
+b:rails_root_url.
+
+When g:rails_syntax is enabled, you may find your Ruby files to be a bit heavy
+on the cyan (or however your Identifiers are highlighted).  You may want to
+enable g:ruby_no_identifiers, as explained in |ft-ruby-syntax|.
+
 ==============================================================================
 MANAGED VIM OPTIONS			*rails-options*
 
@@ -179,12 +211,11 @@ others.  This allows shortening the above example: >
 The 'include' and 'includeexpr' options are set to enable the magic described
 in |rails-gf|.
 
-					*rails-'isfname'*	*rails-'isf'*
-The |rails-gf| feature is further enhanced by changing 'isfname'.
-Unfortunately, this is a global option.  To compensate, the plugin attempts to
-restore this option upon changing buffers.  If this causes problems for you,
-disable the |g:rails_isfname| setting.  Also, please explain your problem to
-the |rails-plugin-author|, so that it might be addressed in a future release.
+					*rails-'statusline'*	*rails-'stl'*
+Useful information is added to the 'statusline', but only when the existing
+statusline contains the file type (this is not the default) and
+|g:rails_statusline| is enabled.  This option is set globally because it
+appears to have no side effects.
 
 					*rails-'makeprg'*	*rails-'mp'*
 					*rails-'errorformat'*	*rails-'efm'*
@@ -198,6 +229,14 @@ and *.rjs are treated as Ruby files, and files that have been falsely
 identified as Mason sources are changed back to ERuby files (but only when
 they are part of a Rails application).
 
+					*rails-'completefunc'*	*rails-'cfu'*
+A 'completefunc' is provided (if not already set).  It is pretty simple, as it
+uses syntax highlighting to make its guess.  See |i_CTRL-X_CTRL-U|.
+
+					*rails-'balloonexpr'*  *rails-'bexpr'*
+If ri is installed, 'balloonexpr' is set up to call it.  In order to use it,
+'ballooneval' must be set.  See |balloon-eval| for details.
+
 ==============================================================================
 NAVIGATION					*rails-navigation*
 
@@ -208,7 +247,8 @@ The 'path' has been modified to include all the best places to be.
 <
 						*rails-gf*
 Use |gf|, |CTRL-W_f|, and |CTRL-W_gf| liberally, as 'includeexpr' has been
-hacked to make them quite intelligent.
+hacked to make them quite intelligent (if |g:rails_mappings| is enabled,
+they are actually mapped instead, for even more magic).
 
 Example uses of |gf|, and where they might lead.
 (* indicates cursor position)
@@ -252,16 +292,16 @@ MAPPINGS					*rails-mappings*
 <Plug> mappings are always available (if the plugin is loaded) and can be
 manually mapped to the key sequence of your choice.  <LocalLeader>r mappings
 are available if |g:rails_mappings| is enabled or |g:rails_level| >= 3.  (The
-<LocalLeader>r prefix can be customized with g:rails_leader.)  These mappings
-are still under development, and it would not be unrealistic for them to
-change.
+<LocalLeader>r prefix can be customized with |g:rails_leader|.)  These
+mappings are still under development, and it would not be unrealistic for them
+to change.
 
 						*<Plug>RailsAlternate*
 <Plug>RailsAlternate	Switch to the "alternate" file.  Typically this just
 <LocalLeader>ra		adds or removes "_test" from the filename, but try it
-			in lots of places; you may be surprised. >
-				:map <Leader>ra <Plug>RailsAlternate
-<
+			in lots of places; you may be surprised.  This
+			might be replaced by |rails-:A| and friends.
+
 						*<Plug>RailsMagicM*
 <Plug>RailsMagicM	Magic.  Maybe it will execute the current test Method,
 <LocalLeader>rm		or Make all test Methods in the current test run.
@@ -270,12 +310,23 @@ change.
 			Method for your view, or vice versa.  You Might find
 			it easiest to try it yourself.
 
+						*<Plug>RailsFind*
+<Plug>RailsFind		Find the file under the cursor, taking into account
+<LocalLeader>rf		context.  This command is quite intelligent:  See
+gf			|rails-gf| for details.
+
 ==============================================================================
 COMMANDS					*rails-commands*
 
 						*rails-:Rails*
 :Rails {directory}	The only global command.  Creates a new Rails
 			application in {directory}, and loads the README.
+
+						*rails-:Rake*
+:Rake {targets}		Like calling |:make| {targets} (with 'makeprg' being
+			rake).  However, in some contexts, if {targets} are
+			omitted, :Rake defaults to something sensible (like
+			db:migrate in a migration, or your current test).
 
 						*rails-:Rcd*
 :Rcd [{directory}]	|:cd| to /path/to/railsapp/{directory}.
@@ -295,14 +346,74 @@ COMMANDS					*rails-commands*
 			:Rscript runner {code} in that code is passed as one
 			argument.
 
+						*rails-:Rgenerate*
 :Rgenerate {options}	Calls script/generate {options}, and then edits the
 			first file generated.
 
+						*rails-:Rdestroy*
 :Rdestroy {options}	Calls script/destroy {options}.
+
+						*rails-:Rlog*
+:Rlog [{logfile}]	Split window and open {logfile} ($RAILS_ENV or
+			development by default).  The control characters used
+			for highlighting are removed.  The usefulness of this
+			command is somewhat limited by the current failure to
+			reload the file on change  (you might try
+			TailMinusF.vim from vim.org).
+
+						*rails-:Rpreview*
+:Rpreview [{path}]	Highly experimental command.  Creates a URL from
+			http://localhost:3000/ and the {path} given.  If
+			{path} is omitted, a sensible default is used.  The
+			not too useful default is to then edit this URL using
+			Vim itself, allowing |netrw| to download it.  More
+			useful is to define a :OpenURL command, which will be
+			used instead.  An example command on a Mac might be: >
+		:command -bar -nargs=1 OpenURL :!open <args>
+<			The following appears to work on Windows: >
+		:command -bar -nargs=1 OpenURL :!start cmd /cstart /b <args>
+<			Other operating systems are left as an exercise to the
+			reader.
 
 						*rails-:Ralternate*
 :Ralternate		Load the "alternate" file.  See
-			|<Plug>RailsAlternate|.  (deprecated)
+			|<Plug>RailsAlternate|.
+
+			*rails-:A* *rails-:AS* *rails-:AV* *:rails-:AT*
+:A			These are compatible with Michael Sharpe's a.vim (but
+:AS			do not make use of that plugin).  Briefly, they edit,
+:AV			split, vertical split, and tabify the "alternate"
+:AT			file.  |g:rails_avim_commands| must be enabled.  This
+			is likely to become the preferred interface in the
+			future.
+
+			*rails-:R* *rails-:RS* *rails-:RV* *:rails-:RT*
+:R			These are just like |rails-:A| and friends above, only
+:RS			they correspond to |<LocalLeader>RailsMagicM| instead
+:RV			of |<LocalLeader>RailsAlternate|.  (Confusing, I
+:RT			know).  The same caveats apply.
+
+
+						*rails-:Rproject*
+:Rproject [{file}]	This command is only provided when the |project|
+			plugin is installed.  Invoke :Project (typically
+			without an argument), and search for the root of the
+			current Rails application.  If it is not found, create
+			a new project, with appropriate directories (app,
+			etc., but not vendor).
+
+						*rails-:Rproject!*
+:Rproject! [{file}]	Same as :Rproject, only delete existing project if it
+			exists and recreate it.  The logic to delete the old
+			project is convoluted and possibly erroneous; report
+			any problems to the |rails-plugin-author|.  A handy
+			mapping might look something like: >
+		autocmd User Rails* map <buffer> <F6> :Rproject!|silent w<CR>
+<			As a bonus, this command organizes views into separate
+			directories for easier navigation.  The downside of
+			this is that you will have to regenerate your project
+			each time you add another view directory (which is why
+			this command recreates your project each time!).
 
 						*rails-:Rpartial*
 :[range]Rpartial [{controller}/]{name}	
@@ -324,7 +435,7 @@ If this is your file, in app/views/blog/show.rhtml: >
 
 And you issue this command: >
 
-	:2,3Partial post
+	:2,3Rpartial post
 
 Your file will change to this: >
 
@@ -350,7 +461,7 @@ The end result would have been this: >
 <
 The easiest way to choose what to extract is to use |linewise-visual| mode.
 Then, a simple >
-	:'<,'>Partial blog/post
+	:'<,'>Rpartial blog/post
 will suffice. (Note the use of a controller name in this example.)
 
 ==============================================================================
@@ -358,6 +469,11 @@ TODO						*rails-todo*
 
 Abbrevations.  You can enable some experimental ones with
 |g:rails_abbreviations| (but don't tell anyone).  Try pa[ and rp<Tab>.
+
+Create and maintain some sort of changelog.
+
+Include a note instructing users to contact the |rails-plugin-author| with all
+comments, compliments, and complaints.  Oh, I guess I just did.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
