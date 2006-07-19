@@ -2,7 +2,7 @@
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1567 1 :AutoInstall: rails.vim
 " URL:          http://svn.tpope.net/rails/vim/railsvim
-" $Id: rails.vim 111 2006-07-18 05:24:19Z tpope $
+" $Id: rails.vim 113 2006-07-20 03:18:43Z tpope $
 
 " See doc/rails.txt for details. Grab it from the URL above if you don't have it
 " To access it from Vim, see :help add-local-help (hint: :helptags ~/.vim/doc)
@@ -580,7 +580,6 @@ endfunction
 
 function! s:Migration(bang,cmd,arg)
   let cmd = s:findcmdfor(a:cmd.(a:bang?'!':''))
-  echo cmd
   if a:arg =~ '^\d$'
     let glob = '00'.a:arg.'_*.rb'
   elseif a:arg =~ '^\d\d$'
@@ -897,7 +896,6 @@ function! s:Rake(bang,arg)
     let arg = s:sub(arg,'^runner:','')
     let old_make = &makeprg
     let &l:makeprg = s:rubyexestr("script/runner ".s:rquote(s:esccmd(arg)))
-    "echo &l:makeprg
     make
     "exe 'Rrunner '.arg
     let &l:makeprg = old_make
@@ -1162,7 +1160,7 @@ function! s:Generate(bang,...)
     if file == ""
       let file = matchstr(res,'\s\+\%(exists\)\s\+\zs\f\+\.rb\ze\n')
     endif
-    echo file
+    "echo file
   else
     let file = ""
   endif
@@ -1426,6 +1424,7 @@ function! s:RailsIncludefind(str,...)
   let str = s:sub(str,'\s*$','')
   let str = s:sub(str,'^[:@]','')
   "let str = s:sub(str,"\\([\"']\\)\\(.*\\)\\1",'\2')
+  let str = s:sub(str,':0x\x\+$','') " For #<Object:0x...> style output
   let str = s:gsub(str,"[\"']",'')
   if line =~ '\<\(require\|load\)\s*(\s*$'
     return str
@@ -1618,7 +1617,13 @@ function! s:Alternate(bang,cmd)
     elseif t =~ '^test-unit\>'
       call s:findedit(cmd,s:sub(file,'test/unit/','app/models/'))
     elseif t =~ '^test-functional\>'
-      call s:findedit(cmd,s:sub(file,'test/functional/','app/controllers/'))
+      if file =~ '_api\.rb'
+        call s:findedit(cmd,s:sub(file,'test/functional/','app/apis/'))
+      elseif file =~ '_controller\.rb'
+        call s:findedit(cmd,s:sub(file,'test/functional/','app/controllers/'))
+      else
+        call s:findedit(cmd,s:sub(file,'test/functional/',''))
+      endif
     else
       call s:findedit(cmd,fnamemodify(file,":t"))
     endif
@@ -1938,7 +1943,7 @@ function! s:BufSyntax()
         syn keyword rubyRailsMethod params request response session headers template cookies flash
       endif
       if t =~ '^api\>'
-        syn keyword rubyRailsAPIMethod api_method
+        syn keyword rubyRailsAPIMethod api_method inflect_names
       endif
       if t =~ '^model$' || t =~ '^model-ar\>'
         syn keyword rubyRailsARMethod acts_as_list acts_as_nested_set acts_as_tree composed_of serialize
@@ -2574,13 +2579,21 @@ function! s:TheMagicC()
   endif
 endfunction
 
+function! s:string(str)
+  if exists("*string")
+    return string(a:str)
+  else
+    return "'" . s:gsub(a:str,"'","''") . "'"
+  endif
+endfunction
+
 function! s:AddSelectiveExpand(abbr,pat,expn,...)
   let expn  = s:gsub(s:gsub(a:expn        ,'[\"|]','\\&'),'<','\\<Lt>')
   let expn2 = s:gsub(s:gsub(a:0 ? a:1 : '','[\"|]','\\&'),'<','\\<Lt>')
   if a:0
-    exe "inoreabbrev <buffer> <silent> ".a:abbr." <C-R>=<SID>RailsSelectiveExpand(".string(a:pat).",\"".expn."\",".string(a:abbr).",\"".expn2."\")<CR>"
+    exe "inoreabbrev <buffer> <silent> ".a:abbr." <C-R>=<SID>RailsSelectiveExpand(".s:string(a:pat).",\"".expn."\",".s:string(a:abbr).",\"".expn2."\")<CR>"
   else
-    exe "inoreabbrev <buffer> <silent> ".a:abbr." <C-R>=<SID>RailsSelectiveExpand(".string(a:pat).",\"".expn."\",".string(a:abbr).")<CR>"
+    exe "inoreabbrev <buffer> <silent> ".a:abbr." <C-R>=<SID>RailsSelectiveExpand(".s:string(a:pat).",\"".expn."\",".s:string(a:abbr).")<CR>"
   endif
 endfunction
 
@@ -2991,7 +3004,7 @@ endfunction
 " }}}1
 
 let s:file = expand('<sfile>:p')
-let s:revision = ' $Rev: 111 $ '
+let s:revision = ' $Rev: 113 $ '
 let s:revision = s:sub(s:sub(s:revision,'^ [$]Rev:\=\s*',''),'\s*\$ $','')
 call s:InitPlugin()
 
