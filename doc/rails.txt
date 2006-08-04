@@ -44,9 +44,10 @@ Rails application development.
 
 4. Easy navigation of the Rails directory structure.  |gf| considers context
    and knows about partials, fixtures, and much more.  There are two commands,
-   :A and :R, for easy jumping between files, including favorites like model
-   to migration, template to helper, and controller to functional test.
-   |rails-navigation|
+   :A (alternate) and :R (related) for easy jumping between files, including
+   favorites like model to migration, template to helper, and controller to
+   functional test.  For more advanced usage, :Rmodel, :Rview, :Rcontroller,
+   and several other commands are provided.  |rails-navigation|
 
 5. Enhanced syntax highlighting.  From has_and_belongs_to_many to
    distance_of_time_in_words, it's here.  For Vim 7 users, 'completefunc' is
@@ -66,7 +67,7 @@ Rails application development.
 8. Integration with other plugins.  |:Rproject| creates a new project.vim
    project.  |:Rdbext| loads database settings from database.yml for dbext.vim
    (and this happens by default under most situations).  Cream users get some
-   additional keybindings, and all GUI users get a menu.
+   additional mappings, and all GUI users get a menu.
 
 ==============================================================================
 INSTALLATION AND USAGE				*rails-installation*
@@ -84,9 +85,9 @@ automatically activated.  This sets various options and defines a few
 buffer-specific commands.
 
 If you are in a hurry to get started, with a minimal amount of reading, you
-are encouraged to at least skim through most this file, to get a better idea
-of what is offered.  If you only read one thing, make sure it is the
-navigation section: |rails-navigation|.
+are encouraged to at least skim through the headings and command names in this
+file, to get a better idea of what is offered.  If you only read one thing,
+make sure it is the navigation section: |rails-navigation|.
 
 ==============================================================================
 GENERAL COMMANDS				*rails-commands*
@@ -109,6 +110,16 @@ actually edit a file from a Rails application.
 
 						*rails-:Rlcd*
 :Rlcd [{directory}]	|:lcd| to /path/to/railsapp/{directory}.
+
+						*rails-:Rdoc*
+:Rdoc			Browse to the Rails API, either in doc/api in the
+			current Rails application, gem_server if it is
+			running, or http://api.rubyonrails.org/ .  Requires
+			:OpenURL to be defined (see |rails-:OpenURL|).
+
+						*rails-:Rdoc!*
+:Rdoc!			Make the appropriate |:helptags| call and invoke
+			|:help| rails.
 
 						*rails-:Redit*
 :Redit {file}		Edit {file}, relative to the application root.
@@ -141,20 +152,33 @@ actually edit a file from a Rails application.
 			account).  The not too useful default is to then edit
 			this URL using Vim itself, allowing |netrw| to
 			download it.  More useful is to define a :OpenURL
-			command, which will be used instead.  An example
-			command on a Mac might be: >
-		:command -bar -nargs=1 OpenURL :!open <args>
-<			The following appears to work on Windows: >
-		:command -bar -nargs=1 OpenURL :!start cmd /cstart /b <args>
-<			Other operating systems are left as an exercise to the
-			reader.
+			command, which will be used instead (see
+			|rails-:OpenURL|).
 			
 						*rails-:Rpreview!*
-:Rpreview! [{path}]	As with :Rpreview, only :OpenURL is never used.
+:Rpreview! [{path}]	As with :Rpreview, except :OpenURL is never used.
 
 						*rails-:Rtags*
 :Rtags			Calls ctags -R on the current application root.
 			Exuberant ctags must be installed.
+
+						*rails-:OpenURL*
+:OpenURL {url}		This is not a command provided by the plugin, but
+			rather provided by user and utilized by other plugin
+			features.  This command should be defined to open the
+			provided {url} in a web browser.  An example command
+			on a Mac might be: >
+		:command -bar -nargs=1 OpenURL :!open <args>
+<			The following appears to work on Windows: >
+		:command -bar -nargs=1 OpenURL :!start cmd /cstart /b <args>
+<			On Debian compatible distributions, the following is
+			the preferred method: >
+		:command -bar -nargs=1 OpenURL :!sensible-browser <args>
+<			If has("mac_gui"), has("win32_gui"), or
+			executable("sensible-browser") is true, the
+			corresponding command above will be automatically
+			defined.  Otherwise, you must provide your own (which
+			is recommended, regardless).
 
 ==============================================================================
 NAVIGATION					*rails-navigation*
@@ -169,8 +193,8 @@ The 'path' has been modified to include all the best places to be.
 <
 						*rails-gf*
 The |gf| command, which normally edits the current file under the cursor, has
-been remapped to take context into account (|CTRL-W_f| and |CTRL-W_gf| are
-also remapped).
+been remapped to take context into account. |CTRL-W_f|(open in new window) and
+|CTRL-W_gf| (open in new tab) are also remapped.
 
 Example uses of |gf|, and where they might lead.
 (* indicates cursor position)
@@ -209,17 +233,20 @@ Example uses of |gf|, and where they might lead.
 Two commands, :A and :R, are used quickly jump to an "alternate" and a
 "related" file, defined below.
 
-			*rails-:A* *rails-:AS* *rails-:AV* *:rails-:AT*
+		*rails-:A* *rails-:AE* *rails-:AS* *rails-:AV* *:rails-:AT*
 :A			These commands were picked to mimic Michael Sharpe's
-:AS			a.vim.  Briefly, they edit, split, vertical split, and
-:AV			edit in a new tab the "alternate" file.  An
-:AT			experimental mapping for :A is [f .
+:AE			a.vim.  Briefly, they edit the "alternate" file, in
+:AS			either the same window (:A and :AE), a new split
+:AV			window (:AS), a new vertically split window (:AV), or
+:AT			a new tab (:AT).  An experimental mapping for :A is
+			[f .
 
-			*rails-:R* *rails-:RS* *rails-:RV* *:rails-:RT*
+		*rails-:R* *rails-:RE* *rails-:RS* *rails-:RV* *:rails-:RT*
 :R			These are similar |rails-:A| and friends above, only
-:RS			they jump to the "related" file rather than the
-:RV			"alternate."  An experimental mapping for :R is ]f .
-:RT			
+:RE			they jump to the "related" file rather than the
+:RS			"alternate."  An experimental mapping for :R is ]f .
+:RV			
+:RT
 
 					*rails-alternate* *rails-related*
 The alternate file is most frequently the test file, though there are
@@ -241,9 +268,36 @@ Suggestions for further contexts to consider for the alternate file, related
 file, and file under the cursor are welcome.  They are subtly tweaked from
 release to release.
 
-Finally, one Vim feature that proves helpful in conjunction with the above is
-|CTRL-^|.  This keystroke edits the previous file, and is helpful to back out
-of any of the above commands.
+For the more uncommon cases, a more deliberate set of commands are provided.
+Each of the following takes an optional argument (with tab completion) but
+defaults to a reasonable guess that follows Rails conventions.  For example,
+when editing app/models/employee.rb, :Rcontroller will default to
+app/controllers/employees_controller.rb.  The controller and model options,
+ideally set from  |rails-modelines|,  can override the mapping from model
+related files to controller related files (Rset controller=hiring) and vice
+versa (Rset model=employee).  See |rails-:Rset|.
+
+:Rmodel						*rails-:Rmodel*
+:Rview						*rails-:Rview*
+:Rcontroller					*rails-:Rcontroller*
+:Rmigration					*rails-:Rmigration*
+:Robserver					*rails-:Robserver*
+:Rlayout					*rails-:Rlayout*
+:Rhelper					*rails-:Rhelper*
+:Rapi						*rails-:Rapi*
+:Rfixtures					*rails-:Rfixtures*
+:Runittest					*rails-:Runittest*
+:Rfunctionaltest				*rails-:Rfunctionaltest*
+:Rintegrationtest				*rails-:Rintegrationtest*
+
+Each of these commands has variants for splitting, vertical splitting and
+opening in a new tab.  For :Rmodel, those variants would be :RSmodel,
+:RVmodel, and :RTmodel.  There is also :REmodel which is a synonym for :Rmodel
+(future versions might allow customization of the behavior of :Rmodel).
+
+Finally, one Vim feature that proves helpful in conjunction with all of the
+above is |CTRL-^|.  This keystroke edits the previous file, and is helpful to
+back out of any of the above commands.
 
 ==============================================================================
 SCRIPT WRAPPERS					*rails-scripts*
@@ -452,11 +506,17 @@ loaded, you can use an autocommand like the following in your vimrc: >
 	autocmd User Rails*		map <buffer> <F9> :Rake<CR>
 You can also have autocommands that only apply to certain types of files.
 These are based off the information shown in the 'statusline' (see
-|rails-'statusline'|), with hyphens changed to asterisks. A few examples: >
-	autocmd User Rails*test*	iabbr <buffer> ae assert_equal
-	autocmd User Rails*model*ar*	iabbr <buffer> vfo validates_format_of
+|rails-'statusline'|), with hyphens changed to periods. A few examples: >
+	autocmd User Rails.controller*	iabbr <buffer> wsn wsdl_service_name
+	autocmd User Rails.model.arb*	iabbr <buffer> vfo validates_format_of
+	autocmd User Rails.view*rhtml*  imap  <buffer> <C-Z> <%=  %><C-O>3h
 End all Rails autocommands with asterisks, even if you have an exact
-specification.
+specification.  There is also a filename matching syntax: >
+	autocmd User Rails*/db/schema.rb Rset task=db:schema:dump
+The two forms can be combined, as in the following highly redundant example: >
+	autocmd User Rails.helper*/app/helpers/*_helper.rb ...
+Use the filetype based syntax whenever possible, reserving the filename based
+syntax for more advanced cases.
 
 						*config/rails.vim*
 If you have settings particular to a specific project, they can be put in a
@@ -472,6 +532,7 @@ newer.
 
 Options may be set set in one of four scopes, which my be indicated by an
 optional prefix.  These scopes determine how broadly an option will apply.
+Generally, the default scope is sufficient
 
 Scope	Description ~
 a:	All files in one Rails application
@@ -481,13 +542,15 @@ l:	Local to method (same as b: in non-Ruby files)
 
 Options are shown below with their default scope, which should be omitted.
 While you may override the scope with a prefix, this is rarely necessary and
-oftentimes useless.  (For example, setting g:rake_task is useless because the
+oftentimes useless.  (For example, setting g:task is useless because the
 default rake task will apply before considering this option.)
 
 Option		Meaning ~
 b:alternate	Custom alternate file for :A, relative to the Rails root
+b:controller	Default controller for certain commands (e.g., :Rhelper)
+b:model		Default model for certain commands (e.g., :Rfixtures)
 l:preview	URL stub for :Rpreview (e.g., blog/show/1)
-b:rake_task	Default task used with :Rake
+b:task		Default task used with :Rake
 l:related	Custom related file for :R, relative to the Rails root
 a:root_url	Root URL for commands like :Rpreview
 
@@ -495,7 +558,7 @@ Examples: >
 	:Rset root_url=http://localhost:12345
 	:Rset related=app/views/blog/edit.rhtml preview=blog/edit/1
 	:Rset alternate=app/models/
-	:Rset l:rake_task=preview        " Special pseudo-task
+	:Rset l:task=preview        " Special pseudo-task for :Rake
 
 Note the use of a scope prefix in the last example.
 
@@ -503,11 +566,12 @@ Note the use of a scope prefix in the last example.
 If |g:rails_modelines| is enabled, these options can also be set from
 modelines near the beginning or end of the file.  These modelines will always
 set buffer-local options; scope should never be specified.  Examples: >
-	# Rset rake_task=db:schema:load
+	# Rset task=db:schema:load
 	<%# Rset alternate=app/views/layouts/application.rhtml %>
-This is an experimental feature, and is likely to be enabled by default in
-future versions, once the kinks have been worked out.  Method specific
-modelines are also planned.
+Modelines can also be local to a method.  Example: >
+	def test_comment
+	  # rset alternate=app/models/comment.rb
+These two forms differ only in case.
 
 ==============================================================================
 MANAGED VIM OPTIONS			*rails-options*
@@ -535,10 +599,9 @@ others.  This allows shortening the above example: >
 The 'includeexpr' option is set to enable the magic described in |rails-gf|.
 
 					*rails-'statusline'*	*rails-'stl'*
-Useful information is added to the 'statusline', but only when the existing
-statusline contains the file type (this is not the default) and
-|g:rails_statusline| is enabled.  This option is set globally because it
-appears to have no side effects.
+Useful information is added to the 'statusline', when |g:rails_statusline| is
+enabled.  This option is set globally because it appears to have no side
+effects.
 
 					*rails-'makeprg'*	*rails-'mp'*
 					*rails-'errorformat'*	*rails-'efm'*
@@ -635,15 +698,13 @@ Enables a few mappings (mostly for |rails-navigation|). Enabled when
 						*g:rails_modelines*  >
 	let g:rails_modelines=1
 Enable modelines like the following: >
-	# Rset rake_task=db:schema:load
+	# Rset task=db:schema:load
 Modelines set buffer-local options using the :Rset command.
-Also enables the method specific defaults for use with :Rake. >
+Also enables method specific modelines (note the case difference): >
 	  def show
-	    # rake preview:blog/show/1
-The latter syntax is temporary until a more flexible system is developed in a
-later version.  Modelines are extremely useful but may cause security concerns
-when editing projects from an untrusted source.  Enabled when |g:rails_level|
->= 4.
+	    # rset preview=blog/show/1
+Modelines are extremely useful but may cause security concerns when editing
+projects from an untrusted source. Enabled when |g:rails_level| >= 3.
 
 						*g:rails_menu*  >
 	let g:rails_menu=1
@@ -658,8 +719,7 @@ b:rails_url.
 
 						*g:rails_statusline*  >
 	let g:rails_statusline=1
-Give a clue in the statusline when this plugin is enabled.  This requires that
-the current filetype is in your existing 'statusline'.  Enabled when
+Give a clue in the statusline when this plugin is enabled.  Enabled when
 |g:rails_level| >= 3.
 
 						*g:rails_subversion*  >
