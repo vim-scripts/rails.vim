@@ -2,7 +2,7 @@
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1567 1 :AutoInstall: rails.vim
 " URL:          http://svn.tpope.net/rails/vim/railsvim
-" $Id: rails.vim 128 2006-08-17 03:26:00Z tpope $
+" $Id: rails.vim 132 2006-11-01 23:58:05Z tpope $
 
 " See doc/rails.txt for details. Grab it from the URL above if you don't have it
 " To access it from Vim, see :help add-local-help (hint: :helptags ~/.vim/doc)
@@ -13,7 +13,7 @@
 " Exit quickly when:
 " - this plugin was already loaded (or disabled)
 " - when 'compatible' is set
-if exists("g:loaded_rails") && (g:loaded_rails && !g:rails_debug) || &cp
+if &cp || (exists("g:loaded_rails") && g:loaded_rails) && !(exists("g:rails_debug") && g:rails_debug)
   finish
 endif
 let g:loaded_rails = 1
@@ -359,6 +359,7 @@ function! RailsFilePath()
     return b:rails_file_path
   endif
   let f = s:gsub(expand("%:p"),'\\ \@!','/')
+  let f = s:sub(f,'/$','')
   if s:gsub(b:rails_root,'\\ \@!','/') == strpart(f,0,strlen(b:rails_root))
     return strpart(f,strlen(b:rails_root)+1)
   else
@@ -813,7 +814,7 @@ function! s:Rake(bang,arg)
 endfunction
 
 function! s:raketasks()
-  return "db:fixtures:load\ndb:migrate\ndb:schema:dump\ndb:schema:load\ndb:sessions:clear\ndb:sessions:create\ndb:structure:dump\ndb:test:clone\ndb:test:clone_structure\ndb:test:prepare\ndb:test:purge\ndoc:app\ndoc:clobber_app\ndoc:clobber_plugins\ndoc:clobber_rails\ndoc:plugins\ndoc:rails\ndoc:reapp\ndoc:rerails\nlog:clear\nrails:freeze:edge\nrails:freeze:gems\nrails:unfreeze\nrails:update\nrails:update:configs\nrails:update:javascripts\nrails:update:scripts\nstats\ntest\ntest:functionals\ntest:integration\ntest:plugins\ntest:recent\ntest:uncommitted\ntest:units\ntmp:cache:clear\ntmp:clear\ntmp:create\ntmp:sessions:clear\ntmp:sockets:clear"
+  return "db:fixtures:load\ndb:migrate\ndb:schema:dump\ndb:schema:load\ndb:sessions:clear\ndb:sessions:create\ndb:structure:dump\ndb:test:clone\ndb:test:clone_structure\ndb:test:prepare\ndb:test:purge\ndoc:app\ndoc:clobber_app\ndoc:clobber_plugins\ndoc:clobber_rails\ndoc:plugins\ndoc:rails\ndoc:reapp\ndoc:rerails\nlog:clear\nrails:freeze:edge\nrails:freeze:gems\nrails:unfreeze\nrails:update\nrails:update:configs\nrails:update:javascripts\nrails:update:scripts\nstats\ntest\ntest:functionals\ntest:integration\ntest:plugins\ntest:recent\ntest:uncommitted\ntest:units\ntmp:cache:clear\ntmp:clear\ntmp:create\ntmp:pids:clear\ntmp:sessions:clear\ntmp:sockets:clear"
 endfunction
 
 function! s:RakeComplete(A,L,P)
@@ -962,7 +963,7 @@ function! s:getpidfor(bind,port)
       let netstat = system("netstat -anop tcp")
       let pid = matchstr(netstat,'\<'.a:bind.':'.a:port.'\>.\{-\}LISTENING\s\+\zs\d\+')
     elseif executable('lsof')
-      let pid = system("lsof -ti 4tcp@".a:bind.":".a:port)
+      let pid = system("lsof -i 4tcp@".a:bind.':'.a:port."|grep LISTEN|awk '{print $2}'")
       let pid = s:sub(pid,'\n','')
     else
       let pid = ""
@@ -1075,10 +1076,9 @@ function! s:ScriptComplete(ArgLead,CmdLine,P)
   "  return s:gsub(glob(RailsRoot()."/script/**"),'\%(.\%(\n\)\@<!\)*[\/]script[\/]','')
   let cmd = s:sub(a:CmdLine,'^\u\w*\s\+','')
   let P = a:P - strlen(a:CmdLine)+strlen(cmd)
-  let g:A = a:ArgLead
-  let g:L = cmd
-  let g:P = P
-  let g:foo = strlen(cmd)-P
+  "let g:A = a:ArgLead
+  "let g:L = cmd
+  "let g:P = P
   if cmd !~ '^[ A-Za-z0-9_=-]*$'
     " You're on your own, bud
     return ""
@@ -1342,9 +1342,9 @@ function! s:RailsFind()
   if res != ""|return res|endif
   let res = s:findasymbol('action','\1')
   if res != ""|return res|endif
-  let res = s:sub(s:findasymbol('partial','\1'),'\k\+$','_&')
+  let res = s:sub(s:sub(s:findasymbol('partial','\1'),'\k\+$','_&'),'^/','')
   if res != ""|return res|endif
-  let res = s:sub(s:findfromview('render\s*(\=\s*:partial\s\+=>\s*','\1'),'\k\+$','_&')
+  let res = s:sub(s:sub(s:findfromview('render\s*(\=\s*:partial\s\+=>\s*','\1'),'\k\+$','_&'),'^/','')
   if res != ""|return res|endif
   let res = s:findamethod('render\s*:\%(template\|action\)\s\+=>\s*','\1')
   if res != ""|return res|endif
@@ -1376,7 +1376,6 @@ function! s:RailsIncludefind(str,...)
     " Probably a silly idea
     return "action_view.rb"
   endif
-  let g:mymode = mode()
   let str = a:str
   if a:0 == 1
     " Get the text before the filename under the cursor.
@@ -1439,7 +1438,7 @@ function! s:RailsIncludefind(str,...)
     elseif filereadable(str.".rjs")
       let str = str . ".rjs"
     endif
-  else
+  elseif str !~ '/'
     " If we made it this far, we'll risk making it singular.
     let str = s:singularize(str)
     let str = s:sub(str,'_id$','')
@@ -1581,8 +1580,15 @@ function! s:EditSimpleRb(bang,cmd,name,target,prefix,suffix)
   if a:target == ""
     " Good idea to emulate error numbers like this?
     return s:error("E471: Argument required") " : R',a:name)
+  "else
+    "let g:target = a:target
   endif
-  let f = a:prefix.s:underscore(a:target).a:suffix.".rb"
+  let f = a:prefix.s:underscore(a:target)
+  if f =~ '[\/]\.$'
+    let f = s:sub(f,'[\/]\.$','')
+  else
+    let f = f.a:suffix.".rb"
+  endif
   return s:findedit(cmd,f)
 endfunction
 
@@ -1661,6 +1667,8 @@ function! s:viewEdit(bang,cmd,...)
   endif
   if view == ''
     return s:error("No view name given")
+  elseif view == '.'
+    return s:edit(a:cmd.(a:bang?'!':''),'app/views')
   elseif view !~ '/' && s:controller(1) != ''
     let view = s:controller(1) . '/' . view
   endif
@@ -1677,7 +1685,7 @@ endfunction
 
 function! s:findlayout(name)
   let c = a:name
-  let pre = "app/views/layouts/"
+  let pre = "/app/views/layouts/"
   if c =~ '\.'
     return pre.c
   elseif filereadable(RailsRoot(). pre.c.".rhtml")
@@ -1832,6 +1840,10 @@ function! s:findedit(cmd,file,...) abort
       let file = s:ra().'/'.file
     endif
     let testcmd = s:editcmdfor(cmd).' '.(a:0 ? a:1 . ' ' : '').file
+  elseif isdirectory(RailsRoot().'/'.file)
+    let testcmd = s:editcmdfor(cmd).' '.(a:0 ? a:1 . ' ' : '').s:ra().'/'.file
+    exe testcmd
+    return
   else
     let testcmd = cmd.' '.(a:0 ? a:1 . ' ' : '').file
   endif
@@ -2529,11 +2541,13 @@ function! s:BufMappings()
   map <buffer> <silent> <Plug>RailsTabFind    :RTfind<CR>
   if g:rails_mappings
     " Unmap so hasmapto doesn't get confused by stale bindings
-    call s:leaderunmap('f','<Plug>RailsFind')
-    call s:leaderunmap('a','<Plug>RailsAlternate')
-    call s:leaderunmap('r','<Plug>RailsRelated')
-    call s:leaderunmap('m',':Rake<CR>')
-    silent! unmap <buffer> <Plug>RailsMagicM
+    if g:rails_leader != ""
+      call s:leaderunmap('f','<Plug>RailsFind')
+      call s:leaderunmap('a','<Plug>RailsAlternate')
+      call s:leaderunmap('r','<Plug>RailsRelated')
+      call s:leaderunmap('m',':Rake<CR>')
+    endif
+    "silent! unmap <buffer> <Plug>RailsMagicM
     if !hasmapto("<Plug>RailsFind")
       nmap <buffer> gf              <Plug>RailsFind
     endif
@@ -2556,12 +2570,15 @@ function! s:BufMappings()
       imap <buffer> <M-]>  <C-O><Plug>RailsRelated
     endif
     map <buffer> <silent> <Plug>RailsMagicM    :echoerr "Obsolete: Use <Plug>RailsRelated instead"<CR>
-    let g:rails_leader = "<LocalLeader>r"
-    call s:leadermap('f','<Plug>RailsFind')
-    call s:leadermap('a',':A<CR>')
-    call s:leadermap('r',':R<CR>')
-    call s:leadermap('m',':Rake<CR>')
+    if g:rails_leader != ""
+      call s:leadermap('f','<Plug>RailsFind')
+      call s:leadermap('a',':A<CR>')
+      call s:leadermap('r',':R<CR>')
+      call s:leadermap('m',':Rake<CR>')
+    endif
   endif
+  " SelectBuf you're a dirty hack
+  let v:errmsg = ""
 endfunction
 
 " }}}1
@@ -3494,7 +3511,7 @@ function! s:SetBasePath()
   if stridx(oldpath,rp) == 2
     let oldpath = ''
   endif
-  let &l:path = '.,'.rp.",".rp."/app/controllers,".rp."/app,".rp."/app/models,".rp."/app/helpers,".rp."/components,".rp."/config,".rp."/lib,".rp."/vendor,".rp."/vendor/plugins/*/lib,".rp."/test/unit,".rp."/test/functional,".rp."/test/integration,".rp."/app/apis,".rp."/app/services,".rp."/test,"."/vendor/plugins/*/test,".rp."/vendor/rails/*/lib,".rp."/vendor/rails/*/test,"
+  let &l:path = '.,'.rp.",".rp."/app/controllers,".rp."/app,".rp."/app/models,".rp."/app/models/*,".rp."/app/helpers,".rp."/components,".rp."/config,".rp."/lib,".rp."/vendor,".rp."/vendor/plugins/*/lib,".rp."/test/unit,".rp."/test/functional,".rp."/test/integration,".rp."/app/apis,".rp."/app/services,".rp."/test,"."/vendor/plugins/*/test,".rp."/vendor/rails/*/lib,".rp."/vendor/rails/*/test,"
   if s:controller() != ''
     if RailsFilePath() =~ '\<components/'
       let &l:path = &l:path . rp . '/components/' . s:controller() . ','
@@ -3548,18 +3565,51 @@ function! s:BufSettings()
     else
       setlocal define=^\\s*def\\s\\+\\(self\\.\\)\\=
     endif
+    " This really belongs in after/ftplugin/ruby.vim but we'll be nice
+    if !exists("b:surround_101")
+      let b:surround_101 = "\r\nend"
+    endif
   elseif &filetype == "eruby"
-    "set include=\\<\\zsAct\\f*::Base\\ze\\>\\\|^\\s*\\(require\\\|load\\)\\s\\+['\"]\\zs\\f\\+\\ze\\\|\\zs<%=\\ze
     setlocal suffixesadd=.rhtml,.rxml,.rjs,.mab,.liquid,.rb,.css,.js,.html,.yml,.csv
+    if exists("b:loaded_allml")
+      " allml is currently unreleased as of writing this comment but can be
+      " found in my config file CVS repository if you dig around.
+      let b:allml_stylesheet_link_tag = "<%= stylesheet_link_tag '\r' %>"
+      let b:allml_javascript_include_tag = "<%= javascript_include_tag '\r' %>"
+      let b:allml_doctype_index = 10
+    endif
   elseif &filetype == "yaml"
     setlocal suffixesadd=.yml,.csv,.rb,.rhtml,.rxml,.rjs,.mab,.liquid,.rake,s.rb
+  endif
+  if &filetype == "eruby" || &filetype == "yaml"
+    " surround.vim
+    if exists("g:loaded_surround")
+      " The idea behind the || part here is that one can normally define the
+      " surrounding to omit the hyphen (since standard ERuby does not use it)
+      " but have it added in Rails ERuby files.  Unfortunately, this makes it
+      " difficult if you really don't want a hyphen in Rails ERuby files.  If
+      " this is your desire, you will need to accomplish it via a rails.vim
+      " autocommand.
+      if !exists("b:surround_45") || b:surround_45 == "<% \r %>" " -
+        let b:surround_45 = "<% \r -%>"
+      endif
+      if !exists("b:surround_61") " =
+        let b:surround_61 = "<%= \r %>"
+      endif
+      if !exists("b:surround_35") " #
+        let b:surround_35 = "<%# \r %>"
+      endif
+      if !exists("b:surround_101") " e
+        let b:surround_101 = "<% \r -%>\n<% end -%>"
+      endif
+    endif
   endif
 endfunction
 
 " }}}1
 
 let s:file = expand('<sfile>:p')
-let s:revision = ' $Rev: 128 $ '
+let s:revision = ' $Rev: 132 $ '
 let s:revision = s:sub(s:sub(s:revision,'^ [$]Rev:\=\s*',''),'\s*\$ $','')
 call s:InitPlugin()
 
