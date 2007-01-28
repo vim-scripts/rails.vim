@@ -2,7 +2,7 @@
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1567 1 :AutoInstall: rails.vim
 " URL:          http://svn.tpope.net/rails/vim/railsvim
-" $Id: rails.vim 144 2007-01-18 06:05:12Z tpope $
+" $Id: rails.vim 150 2007-01-29 06:57:38Z tpope $
 
 " See doc/rails.txt for details. Grab it from the URL above if you don't have it
 " To access it from Vim, see :help add-local-help (hint: :helptags ~/.vim/doc)
@@ -380,10 +380,10 @@ endfunction
 function! RailsFileType()
   if !exists("b:rails_root")
     return ""
-  elseif exists("b:rails_type")
-    return b:rails_type
   elseif exists("b:rails_file_type")
     return b:rails_file_type
+  elseif exists("b:rails_cached_file_type")
+    return b:rails_cached_file_type
   endif
   let f = RailsFilePath()
   let e = fnamemodify(RailsFilePath(),':e')
@@ -624,7 +624,7 @@ function! s:BufCommands()
     command! -buffer -bar -nargs=? -range Rextract :<line1>,<line2>call s:Partial(<bang>0,<f-args>)
     command! -buffer -bar -nargs=? -range Rpartial :call s:warn("Warning: :Rpartial has been deprecated in favor of :Rextract") | <line1>,<line2>Rextract<bang> <args>
   endif
-  if RailsFileType() =~ '^\%(db-\)\=migration\>' && RailsFilePath() !~ '\<db/schema\.rb$'
+  if RailsFilePath() =~ '\<db/migrate/.*\.rb$'
     command! -buffer -bar                 Rinvert  :call s:Invert(<bang>0)
   endif
 endfunction
@@ -1177,15 +1177,15 @@ endfunction
 
 function! s:BufNavCommands()
   " TODO: completion
-  silent exe "command! -bar -buffer -nargs=? Rcd :cd ".s:rp()."/<args>"
-  silent exe "command! -bar -buffer -nargs=? Rlcd :lcd ".s:rp()."/<args>"
+  silent exe "command! -bar -buffer -nargs=? Rcd :cd ".s:ra()."/<args>"
+  silent exe "command! -bar -buffer -nargs=? Rlcd :lcd ".s:ra()."/<args>"
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList Rfind       :call s:Find(<bang>0,<count>,"" ,<f-args>)
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList REfind      :call s:Find(<bang>0,<count>,"E",<f-args>)
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList RSfind      :call s:Find(<bang>0,<count>,"S",<f-args>)
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList RVfind      :call s:Find(<bang>0,<count>,"V",<f-args>)
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList RTfind      :call s:Find(<bang>0,<count>,"T",<f-args>)
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList Rsfind      :<count>RSfind<bang> <args>
-  command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList Rvsfind     :<count>RVfind<bang> <args>
+  "command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList Rvsfind     :echoerr "Obsolete: Use :RVfind instead"
   command!   -buffer -bar -nargs=* -count=1 -complete=custom,s:FindList Rtabfind    :<count>RTfind<bang> <args>
   command!   -buffer -bar -nargs=* -bang    -complete=custom,s:EditList Redit       :call s:Edit(<bang>0,<count>,"" ,<f-args>)
   command!   -buffer -bar -nargs=* -bang    -complete=custom,s:EditList REedit      :call s:Edit(<bang>0,<count>,"E",<f-args>)
@@ -1253,7 +1253,7 @@ function! s:Edit(bang,count,arg,...)
       let i = i + 1
     endwhile
     let file = a:{i}
-    call s:findedit(cmd,file,str)
+    call s:findedit(s:editcmdfor(cmd),file,str)
   else
     exe s:editcmdfor(cmd)
   endif
@@ -1453,6 +1453,21 @@ function! s:RailsIncludefind(str,...)
       let str = str . ".rxml"
     elseif filereadable(str.".rjs")
       let str = str . ".rjs"
+    endif
+  elseif str =~ '_\%(path\|url\)$'
+    " REST helpers
+    let str = s:sub(str,'_\%(path\|url\)$','')
+    " TODO: handle formats
+    let str = s:sub(str,'^formatted_','')
+    if str =~ '^\%(new\|edit\)_'
+      let str = 'app/views/'.s:sub(s:pluralize(str),'^\(new\|edit\)_\(.*\)','\2/\1')
+    elseif str == s:singularize(str)
+      " If the word can't be singularized, it's probably a link to the show
+      " method.  We should verify by checking for an argument, but that's
+      " difficult the way things here are currently structured.
+      let str = 'app/views/'.s:pluralize(str).'/show'
+    else
+      let str = 'app/views/'.str.'/index'
     endif
   elseif str !~ '/'
     " If we made it this far, we'll risk making it singular.
@@ -1874,7 +1889,6 @@ function! s:try(cmd) abort
 endfunction
 
 function! s:findedit(cmd,file,...) abort
-  " TODO: consider rewriting for components
   let cmd = s:findcmdfor(a:cmd)
   if a:file =~ '\n'
     let filelist = a:file . "\n"
@@ -1991,6 +2005,8 @@ function! s:AlternateFile()
     return file
   elseif f == ''
     call s:warn("No filename present")
+  elseif f =~ '\<test/unit/routing_test\.rb$'
+    return 'config/routes.rb'
   elseif fnamemodify(f,":e") == "rb"
     let file = fnamemodify(f,":r")
     if file =~ '_\%(test\|spec\)$'
@@ -2358,6 +2374,7 @@ function! s:BufSyntax()
       if g:rails_expensive
         let s:rails_view_helpers = ""
         if has("ruby")
+          " && (has("win32") || has("win32unix"))
           ruby begin; require 'rubygems'; rescue LoadError; end
           ruby begin; require 'active_support'; require 'action_controller'; require 'action_view'; VIM::command('let s:rails_view_helpers = "%s"' % ActionView::Helpers.constants.grep(/Helper$/).collect {|c|ActionView::Helpers.const_get c}.collect {|c| c.public_instance_methods(false)}.flatten.sort.uniq.reject {|m| m =~ /[=?]$/}.join(" ")); rescue Exception; end
         endif
@@ -2424,7 +2441,7 @@ function! s:BufSyntax()
         syn keyword rubyRailsMigrationMethod create_table drop_table rename_table add_column rename_column change_column change_column_default remove_column add_index remove_index
       endif
       if t =~ '^test\>'
-        syn keyword rubyRailsTestMethod add_assertion assert assert_block assert_equal assert_in_delta assert_instance_of assert_kind_of assert_match assert_nil assert_no_match assert_not_equal assert_not_nil assert_not_same assert_nothing_raised assert_nothing_thrown assert_operator assert_raise assert_respond_to assert_same assert_send assert_throws flunk fixtures fixture_path use_transactional_fixtures use_instantiated_fixtures
+        syn keyword rubyRailsTestMethod add_assertion assert assert_block assert_equal assert_in_delta assert_instance_of assert_kind_of assert_match assert_nil assert_no_match assert_not_equal assert_not_nil assert_not_same assert_nothing_raised assert_nothing_thrown assert_operator assert_raise assert_respond_to assert_same assert_send assert_throws assert_recognizes assert_generates assert_routing flunk fixtures fixture_path use_transactional_fixtures use_instantiated_fixtures
         if t !~ '^test-unit\>'
           syn match   rubyRailsTestControllerMethod  '\.\@<!\<\%(get\|post\|put\|delete\|head\|process\)\>'
           syn keyword rubyRailsTestControllerMethod assert_response assert_redirected_to assert_template assert_recognizes assert_generates assert_routing assert_dom_equal assert_dom_not_equal assert_valid assert_select assert_select_rjs assert_select_encoded assert_select_email
@@ -2437,10 +2454,11 @@ function! s:BufSyntax()
         syn keyword rubyRailsMethod member
       endif
       if t =~ '^config-routes\>'
-        syn match rubyRailsMethod '\.\zs\%(connect\|resource\|resources\|root\|named_route\)\>'
+        syn match rubyRailsMethod '\.\zs\%(connect\|resources\|root\|named_route\)\>'
       endif
-      syn keyword rubyRailsMethod cattr_accessor mattr_accessor
-      syn keyword rubyRailsInclude require_dependency require_gem
+      syn keyword rubyRailsMethod alias_attribute alias_method_chain attr_accessor_with_default attr_internal attr_internal_accessor attr_internal_reader attr_internal_writer delegate mattr_accessor mattr_reader mattr_writer
+      syn keyword rubyRailsMethod cattr_accessor cattr_reader cattr_writer class_inheritable_accessor class_inheritable_array class_inheritable_array_writer class_inheritable_hash class_inheritable_hash_writer class_inheritable_option class_inheritable_reader class_inheritable_writer inheritable_attributes read_inheritable_attribute reset_inheritable_attributes write_inheritable_array write_inheritable_attribute write_inheritable_hash
+      syn keyword rubyRailsInclude require_dependency gem
     elseif &syntax == "eruby" " && t =~ '^view\>'
       syn cluster erubyRailsRegions contains=erubyOneLiner,erubyBlock,erubyExpression
       syn match rubyRailsError ':order_by\>' containedin=@erubyRailsRegions
@@ -2968,7 +2986,8 @@ function! s:NewProjectTemplate(proj,rr,fancy)
   else
     let str = str."  views=views filter=\"**\" {\n  }\n"
   endif
-  let str = str . " }\n components=components filter=\"**\" {\n }\n"
+  let str = str . " }\n"
+  "let str = str . " components=components filter=\"**\" {\n }\n"
   let str = str . " config=config {\n  environments=environments {\n  }\n }\n"
   let str = str . " db=db {\n"
   if isdirectory(a:rr.'/db/migrate')
@@ -2982,9 +3001,9 @@ function! s:NewProjectTemplate(proj,rr,fancy)
     let str = str . "  integration=integration filter=\"**\" {\n  }\n"
   endif
   let str = str . "  mocks=mocks filter=\"**\" {\n  }\n  unit=unit filter=\"**\" {\n  }\n }\n}\n"
-  if exists("*RailsProcessProject")
-    let str = call RailsProcessProject(a:rr,str)
-  endif
+  "if exists("*RailsProcessProject")
+    "let str = call RailsProcessProject(a:rr,str)
+  "endif
   return str
 endfunction
 
@@ -3011,7 +3030,6 @@ function! s:BufDatabase(...)
       " It might be possible to make use of taint checking.
       let out = ""
       if has("ruby")
-        ruby require "yaml"
         ruby VIM::command('let out = %s' % File.open(VIM::evaluate("RailsRoot()")+"/config/database.yml") {|f| y = YAML::load(f); e = y[VIM::evaluate("env")]; i=0; e=y[e] while e.respond_to?(:to_str) && (i+=1)<16; e.map {|k,v| "#{k}=#{v}\n" if v}.compact.join }.inspect) rescue nil
       endif
       if out == ""
@@ -3171,8 +3189,9 @@ function! s:BufAbbreviations()
   command! -buffer -bar -nargs=* -bang Rabbrev :call s:Abbrev(<bang>0,<f-args>)
   " Some of these were cherry picked from the TextMate snippets
   if g:rails_abbreviations
+    let t = RailsFileType()
     " Limit to the right filetypes.  But error on the liberal side
-    if RailsFileType() =~ '^\(controller\|view\|helper\|test-functional\|test-integration\)\>'
+    if t =~ '^\(controller\|view\|helper\|test-functional\|test-integration\)\>'
       iabbr <buffer> render_partial render :partial =>
       iabbr <buffer> render_action render :action =>
       iabbr <buffer> render_text render :text =>
@@ -3199,20 +3218,21 @@ function! s:BufAbbreviations()
       Rabbrev rt( render :text\ =>\ 
       Rabbrev rx( render :xml\ =>\ 
     endif
-    if RailsFileType() =~ '^\%(view\|helper\)\>'
+    if t =~ '^\%(view\|helper\)\>'
       iabbr <buffer> human_size number_to_human_size
       iabbr <buffer> start_form_tag form_tag
       Rabbrev dotiw distance_of_time_in_words
       Rabbrev taiw  time_ago_in_words
     endif
-    if RailsFileType() =~ '^controller\>'
+    if t =~ '^controller\>'
       "call s:AddSelectiveExpand('rn','[,\r]','render :nothing => true')
       "let b:rails_abbreviations = b:rails_abbreviations . "rn\trender :nothing => true\n"
+      Rabbrev re(  redirect_to\ 
       Rabbrev rea( redirect_to :action\ =>\ 
       Rabbrev rec( redirect_to :controller\ =>\ 
       Rabbrev rst  respond_to\ 
     endif
-    if RailsFileType() =~ '^model-arb\=\>' || RailsFileType() =~ '^model$'
+    if t =~ '^model-arb\=\>' || t =~ '^model$'
       Rabbrev bt(    belongs_to
       Rabbrev ho(    has_one
       Rabbrev hm(    has_many
@@ -3229,7 +3249,7 @@ function! s:BufAbbreviations()
       Rabbrev vp(    validates_presence_of
       Rabbrev vu(    validates_uniqueness_of
     endif
-    if RailsFileType() =~ '^\%(db-\)\=\%(migration\|schema\)\>'
+    if t =~ '^\%(db-\)\=\%(migration\|schema\)\>'
       Rabbrev mac(  add_column
       Rabbrev mrnc( rename_column
       Rabbrev mrc(  remove_column
@@ -3239,23 +3259,23 @@ function! s:BufAbbreviations()
       Rabbrev mdt(  drop_table
       Rabbrev mcc(  t.column
     endif
-    if RailsFileType() =~ '^test\>'
-      Rabbrev ae(   assert_equal
+    if t =~ '^test\>'
+      "Rabbrev ae(   assert_equal
       Rabbrev ase(  assert_equal
-      Rabbrev ako(  assert_kind_of
+      "Rabbrev ako(  assert_kind_of
       Rabbrev asko( assert_kind_of
-      Rabbrev ann(  assert_not_nil
+      "Rabbrev ann(  assert_not_nil
       Rabbrev asnn( assert_not_nil
-      Rabbrev ar(   assert_raise
+      "Rabbrev ar(   assert_raise
       Rabbrev asr(  assert_raise
-      Rabbrev are(  assert_response
+      "Rabbrev are(  assert_response
       Rabbrev asre( assert_response
       Rabbrev art(  assert_redirected_to
     endif
     Rabbrev :a    :action\ =>\ 
     inoreabbrev <buffer> <silent> :c <C-R>=<SID>TheMagicC()<CR>
     " Lie a little
-    if RailsFileType() =~ '^view\>'
+    if t =~ '^view\>'
       let b:rails_abbreviations = b:rails_abbreviations . ":c\t:collection => \n"
     elseif s:controller() != ''
       let b:rails_abbreviations = b:rails_abbreviations . ":c\t:controller => \n"
@@ -3559,6 +3579,12 @@ function! s:InitPlugin()
         \.'%-G%.%#'
   command! -bar -bang -nargs=* -complete=dir Rails :call s:NewApp(<bang>0,<f-args>)
   call s:CreateMenus()
+  " Apparently, the nesting level within Vim when the Ruby interface is
+  " initialized determines how much stack space Ruby gets.  In previous
+  " versions of rails.vim, sporadic stack overflows occured when omnicomplete
+  " was used.  This was apparently due to rails.vim having first initialized
+  " ruby deep in a nested function call.
+  silent! ruby nil
 endfunction
 
 function! s:Detect(filename)
@@ -3610,6 +3636,12 @@ function! s:BufInit(path)
   let firsttime = !(exists("b:rails_root") && b:rails_root == a:path)
   let b:rails_root = a:path
   let s:_{s:rv()} = 1
+  " Apparently RailsFileType() can be slow if the underlying file system is
+  " slow (even though it doesn't really do anything IO related).  This caching
+  " is a temporary hack; if it doesn't cause problems it should probably be
+  " refactored.
+  unlet! b:rails_cached_file_type
+  let b:rails_cached_file_type = RailsFileType()
   if g:rails_history_size > 0
     if !exists("g:RAILS_HISTORY")
       let g:RAILS_HISTORY = ""
@@ -3660,9 +3692,7 @@ function! s:BufInit(path)
   call s:BufAbbreviations()
   call s:BufDatabase()
   let t = RailsFileType()
-  "if t != ""
-    let t = "-".t
-  "endif
+  let t = "-".t
   let f = '/'.RailsFilePath()
   if f =~ '[ !#$%\,]'
     let f = ''
@@ -3683,6 +3713,7 @@ function! s:BufInit(path)
   endif
   call s:BufModelines()
   call s:BufMappings()
+  "unlet! b:rails_cached_file_type
   let &cpo = cpo_save
   return b:rails_root
 endfunction
@@ -3724,7 +3755,7 @@ function! s:BufSettings()
     let &l:tags = &tags . "," . rp ."/tags"
   endif
   if has("balloon_eval") && exists("+balloonexpr") && executable('ri')
-    setlocal balloonexpr=RailsBalloonexpr()
+    "setlocal balloonexpr=RailsBalloonexpr()
   endif
   " There is no rjs/rxml filetype now, but in the future, who knows...
   if &ft == "ruby" || &ft == "eruby" || &ft == "rjs" || &ft == "rxml" || &ft == "yaml"
@@ -3792,7 +3823,7 @@ endfunction
 " }}}1
 
 let s:file = expand('<sfile>:p')
-let s:revision = ' $LastChangedRevision: 144 $ '
+let s:revision = ' $LastChangedRevision: 150 $ '
 let s:revision = s:sub(s:sub(s:revision,'^ [$]LastChangedRevision:\=\s*',''),'\s*\$ $','')
 call s:InitPlugin()
 
