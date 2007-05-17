@@ -2,7 +2,7 @@
 " Author:       Tim Pope <vimNOSPAM@tpope.info>
 " GetLatestVimScripts: 1567 1 :AutoInstall: rails.vim
 " URL:          http://rails.vim.tpope.net/
-" $Id: rails.vim 190 2007-05-15 21:09:27Z tpope $
+" $Id: rails.vim 192 2007-05-17 17:27:54Z tpope $
 
 " See doc/rails.txt for details. Grab it from the URL above if you don't have it
 " To access it from Vim, see :help add-local-help (hint: :helptags ~/.vim/doc)
@@ -147,6 +147,9 @@ function! s:endof(lnum)
   if a:lnum == 0
     return 0
   endif
+  if &ft == "yaml" || expand("%:e") == "yml"
+    return -1
+  endif
   let cline = getline(a:lnum)
   let spc = matchstr(cline,'^\s*')
   let endpat = '\<end\>'
@@ -180,7 +183,7 @@ function! s:lastmethodline(...)
     let line = line - 1
   endwhile
   let lend = s:endof(line)
-  if lend >= (a:0 ? a:1 : line("."))
+  if lend < 0 || lend >= (a:0 ? a:1 : line("."))
     return line
   else
     return 0
@@ -769,8 +772,8 @@ function! s:NewApp(bang,...)
   let dir = expand(dir)
   if isdirectory(fnamemodify(dir,':h')."/.svn") && g:rails_subversion
     let append = " -c"
-  "else
-    "let append = " "
+  else
+    let append = ""
   endif
   if g:rails_default_database != "" && str !~ '-d \|--database='
     let append = append." -d ".g:rails_default_database
@@ -2481,10 +2484,16 @@ function! s:RelatedFile()
   elseif s:getopt("related","b") != ""
     return s:getopt("related","b")
   elseif f =~ '\<config/environments/'
-    return "config/environment.rb"
+    return "config/database.yml#". expand("%:t:r")
   elseif f == 'README'
     return "config/database.yml"
-  elseif f =~ '\<config/database\.yml$'   | return "config/environment.rb"
+  elseif f =~ '\<config/database\.yml$'
+    let lm = s:lastmethod()
+    if lm != ""
+      return "config/environments/".lm.".rb\nconfig/environment.rb"
+    else
+      return "config/environment.rb"
+    endif
   elseif f =~ '\<config/routes\.rb$'      | return "config/database.yml"
   elseif f =~ '\<config/environment\.rb$' | return "config/routes.rb"
   elseif f =~ '\<db/migrate/\d\d\d_'
@@ -4352,8 +4361,6 @@ function! s:BufSettings()
     let &l:suffixesadd=".rb,.".s:gsub(s:view_types,',',',.').",.yml,.csv,.rake,s.rb"
     if expand('%:e') == 'rake'
       setlocal define=^\\s*def\\s\\+\\(self\\.\\)\\=\\\|^\\s*\\%(task\\\|file\\)\\s\\+[:'\"]
-    elseif &filetype == 'yaml' || expand('%:e') == 'yml'
-      setlocal define=^\\%(\\h\\k*:\\)\\@=
     else
       setlocal define=^\\s*def\\s\\+\\(self\\.\\)\\=
     endif
@@ -4363,6 +4370,9 @@ function! s:BufSettings()
       let b:surround_69  = "\1expr: \1\rend"
       let b:surround_101 = "\r\nend"
     endif
+  elseif &filetype == 'yaml' || expand('%:e') == 'yml'
+    setlocal define=^\\%(\\h\\k*:\\)\\@=
+    let &l:suffixesadd=".yml,.csv,.rb,.".s:gsub(s:view_types,',',',.').",.rake,s.rb"
   elseif &filetype == "eruby"
     let &l:suffixesadd=".".s:gsub(s:view_types,',',',.').",.rb,.css,.js,.html,.yml,.csv"
     if exists("g:loaded_allml")
@@ -4371,8 +4381,6 @@ function! s:BufSettings()
       let b:allml_javascript_include_tag = "<%= javascript_include_tag '\r' %>"
       let b:allml_doctype_index = 10
     endif
-  elseif &filetype == "yaml"
-    let &l:suffixesadd=".yml,.csv,.rb,.".s:gsub(s:view_types,',',',.').",.rake,s.rb"
   endif
   if &filetype == "eruby" || &filetype == "yaml"
     " surround.vim
@@ -4404,7 +4412,7 @@ endfunction
 " }}}1
 
 let s:file = expand('<sfile>:p')
-let s:revision = ' $LastChangedRevision: 190 $ '
+let s:revision = ' $LastChangedRevision: 192 $ '
 let s:revision = s:sub(s:sub(s:revision,'^ [$]LastChangedRevision:\=\s*',''),'\s*\$ $','')
 call s:InitPlugin()
 
