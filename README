@@ -14,8 +14,8 @@ TextMate may be the latest craze for developing Ruby on Rails applications, but 
 
 6. Interface to script/*.  Generally, use ":Rscript about" to call "script/about" or "script/rails about".  Many commands have wrappers with additional features: ":Rgenerate controller Blog" generates a blog controller and edits app/controllers/blog_controller.rb.
 
-7. Partial extraction and migration inversion.  :Rextract {file} replaces the desired range (ideally selected in visual line mode) with "render :partial => '{file}'", which is automatically created with your content.  The @{file} instance variable is replaced with the {file} local variable.  :Rinvert takes a self.up migration and writes a self.down.e
+7. Partial extraction and migration inversion.  :Rextract {file} replaces the desired range (ideally selected in visual line mode) with "render :partial => '{file}'", which is automatically created with your content.  The @{file} instance variable is replaced with the {file} local variable.  :Rinvert takes a self.up migration and writes a self.down.
 
-8. Integration with other plugins.  :Rproject spawns  NERDTree (vimscript #1658) or creates a new project.vim (vimscript #69) project.  :Rdbext loads database settings from database.yml for dbext.vim, vimscript #356 (and this happens by default under most situations).  Cream users get some additional keybindings, and all GUI users get a menu.
+8. Integration with other plugins.  :Rtree spawns NERDTree.vim.  If dbext.vim is installed, it will be transparently configured to reflect database.yml.  Cream users get some additional mappings, and all GUI users get a menu.
 
 If you like rails.vim and use Git, please Watch the repository on Github at http://github.com/tpope/vim-rails, and try my Git wrapper fugitive.vim: vimscript #2975 http://github.com/tpope/vim-fugitive
